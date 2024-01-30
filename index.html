@@ -1,0 +1,106 @@
+<html>
+  <head>
+    <!-- chameleon-ultra.js require lodash@4, place before any chameleon-ultra libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js"></script>
+
+    <!-- chameleon-ultra.js Core -->
+    <script src="https://cdn.jsdelivr.net/npm/chameleon-ultra.js@0/dist/iife/index.min.js"></script>
+    <!-- chameleon-ultra.js Crypto1 -->
+    <script src="https://cdn.jsdelivr.net/npm/chameleon-ultra.js@0/dist/iife/Crypto1.min.js"></script>
+    <!-- chameleon-ultra.js WebbleAdapter plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chameleon-ultra.js@0/dist/iife/plugin/WebbleAdapter.min.js"></script>
+    <!-- chameleon-ultra.js WebserialAdapter plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chameleon-ultra.js@0/dist/iife/plugin/WebserialAdapter.min.js"></script>
+  </head>
+  <script>
+    const { Buffer, ChameleonUltra, WebbleAdapter, WebserialAdapter } =
+      window.ChameleonUltraJS;
+    async function run(ultra) {
+      const { Buffer, DeviceMode, FreqType, Slot, TagType } =
+        window.ChameleonUltraJS;
+
+      document.getElementById("result").innerHTML = "loading.";
+
+      //set slot tag type and reset data
+      await ultra.cmdSlotChangeTagType(Slot.SLOT_1, TagType.MIFARE_1024);
+
+      document.getElementById("result").innerHTML = "loading..";
+
+      await ultra.cmdSlotResetTagType(Slot.SLOT_1, TagType.MIFARE_1024);
+
+      document.getElementById("result").innerHTML = "loading...";
+      // enable slot
+      await ultra.cmdSlotSetEnable(Slot.SLOT_1, FreqType.HF, true);
+
+      document.getElementById("result").innerHTML = "loading....";
+      // set active slot
+      await ultra.cmdSlotSetActive(Slot.SLOT_1);
+
+      document.getElementById("result").innerHTML = "loading.....";
+      // set anti-collision and write emu block
+      await ultra.cmdHf14aSetAntiCollData({
+        uid: Buffer.from(document.getElementById("uid").value, "hex"),
+        atqa: Buffer.from("0400", "hex"),
+        sak: Buffer.from("08", "hex"),
+      });
+      document.getElementById("result").innerHTML = "loading......";
+
+      await ultra.cmdMf1EmuWriteBlock(
+        63,
+        Buffer.from(
+          "BABE" +
+            document.getElementById("date").value +
+            "04000000000000000000",
+          "hex"
+        )
+      );
+      document.getElementById("result").innerHTML = "loading.......";
+
+      // save slot settings
+      await ultra.cmdSlotSaveSettings();
+
+      document.getElementById("result").innerHTML = "loading........";
+
+      // set device mode
+      await ultra.cmdChangeDeviceMode(DeviceMode.TAG);
+
+      document.getElementById("result").innerHTML = "Done !";
+    }
+
+    // you can run in DevTools of https://taichunmin.idv.tw/chameleon-ultra.js/test.html
+    var ultraUsb;
+
+    var date = new Date();
+
+    var day = date.getDate();
+    var month = date.getMonth() + 1;
+    var year = date.getFullYear();
+
+    day = day < 10 ? "0" + day : day;
+    month = month < 10 ? "0" + month : month;
+
+    // DDMMAAAA
+    var dateFormatee = day + month + year;
+
+    document.addEventListener("DOMContentLoaded", function () {
+      document.getElementById("date").value = dateFormatee;
+    });
+
+    async function onBtnClick() {
+      ultraUsb = new ChameleonUltra(true);
+      await ultraUsb.use(new WebbleAdapter());
+      document.getElementById("result").innerHTML = "loading";
+      await run(ultraUsb);
+    }
+  </script>
+  <body>
+    <div>
+      UID:
+      <input id="uid" value="DEADBEEF" maxlength="8" pattern="[0-9]{8}" />
+      Date:
+      <input id="date" maxlength="8" />
+      <button onclick="onBtnClick()">GO</button>
+    </div>
+    <div id="result"></div>
+  </body>
+</html>
